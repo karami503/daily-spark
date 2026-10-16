@@ -66,7 +66,7 @@ import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from './config.js';
     ? createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, { auth: { flowType: 'pkce' } }) : null;
   let currentUser=null, st=null, cur=null, generating=false;
   let calDate=new Date(), requestController=null;
-  let activeTab='mission', requestSequence=0;
+  let activeTab='mission', requestSequence=0, settingsOpener=null;
 
   function getApiKey() { return currentUser ? sessionStorage.getItem(`ds_key_${currentUser}`) || '' : ''; }
   function setApiKey(key) { sessionStorage.setItem(`ds_key_${currentUser}`,key); }
@@ -357,6 +357,7 @@ import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from './config.js';
 
   /* ─────── 설정 모달 ─────── */
   window.openSettings = () => {
+    settingsOpener=document.activeElement;
     const bg=$('modalBg'), panel=$('modalPanel');
     bg.classList.remove('hidden');
     requestAnimationFrame(()=>{ bg.classList.remove('opacity-0'); panel.classList.remove('translate-y-8','opacity-0'); });
@@ -369,7 +370,7 @@ import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from './config.js';
     if(e && e.target!==e.currentTarget) return;
     const bg=$('modalBg'), panel=$('modalPanel');
     bg.classList.add('opacity-0'); panel.classList.add('translate-y-8','opacity-0');
-    setTimeout(()=>bg.classList.add('hidden'),300);
+    setTimeout(()=>{ bg.classList.add('hidden'); settingsOpener?.focus(); },300);
   };
   window.toggleKeyVis = () => {
     const inp=$('inpKey');
@@ -438,5 +439,14 @@ import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from './config.js';
     document.addEventListener('visibilitychange',()=>{ if(!document.hidden) sync(); });
     setInterval(()=>{ if(st) renderApp(); },1000);
   }
-  document.addEventListener('keydown',event=>{ if(event.key==='Escape') closeSettings(); });
+  document.addEventListener('keydown',event=>{
+    if($('modalBg').classList.contains('hidden')) return;
+    if(event.key==='Escape') closeSettings();
+    if(event.key==='Tab') {
+      const items=[...$('modalPanel').querySelectorAll('button,a,input')];
+      const first=items[0], last=items.at(-1);
+      if(event.shiftKey && document.activeElement===first) { event.preventDefault(); last.focus(); }
+      else if(!event.shiftKey && document.activeElement===last) { event.preventDefault(); first.focus(); }
+    }
+  });
   boot().catch(()=>{ $('authError').textContent='앱을 시작하지 못했어요. 새로고침 후 다시 시도해주세요.'; });
