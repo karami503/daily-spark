@@ -20,7 +20,7 @@ export function createHandler(admin,geminiKey,fetchApi=fetch) {
     if(!token) return reply({error:'LOGIN_REQUIRED'},401);
     try {
       const {data:auth,error:authError}=await admin.auth.getUser(token);
-      if(authError || !auth.user || auth.user.is_anonymous) return reply({error:'LOGIN_REQUIRED'},401);
+      if(authError || !auth.user) return reply({error:'LOGIN_REQUIRED'},401);
       const uid=auth.user.id;
       const {data:reservation,error:reserveError}=await admin.rpc('daily_spark_ai',{p_uid:uid,p_action:'reserve'});
       if(reserveError) {

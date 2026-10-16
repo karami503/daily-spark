@@ -20,7 +20,7 @@
 <div id="confettiBox" class="confetti-box hidden"></div>
 
 <!-- ====================================================================== -->
-<!-- ==================== 로그인 / 회원가입 화면 ========================== -->
+<!-- ==================== 시작 화면 ========================== -->
 <!-- ====================================================================== -->
 <div id="authScreen" class="relative z-10 min-h-screen flex items-center justify-center p-4">
   <div class="login-card rounded-3xl shadow-glow p-8 sm:p-10 w-full max-w-sm animate-pop">
@@ -31,13 +31,13 @@
       <p class="text-xs text-gray-400 mt-1 font-semibold tracking-widest">오늘의 소소한 미션</p>
     </div>
 
-    <p class="text-center text-sm text-gray-500 mb-6 leading-relaxed">매일 작은 도전 하나.<br>Google 계정으로 미션과 기록을 이어가세요.</p>
-    <button onclick="authSubmit()" id="authBtn" disabled
+    <p class="text-center text-sm text-gray-500 mb-6 leading-relaxed">오늘의 미션을 불러오고 있어요…</p>
+    <button onclick="location.reload()" id="authBtn"
       class="btn-press w-full bg-white border border-gray-200 text-gray-700 rounded-xl py-3.5 font-bold text-sm shadow-soft disabled:opacity-50">
-      Google로 로그인
+      다시 시도
     </button>
     <p id="authError" role="status" class="text-xs text-red-500 mt-3 min-h-[1.2rem] text-center"></p>
-    <p class="text-center text-[11px] text-gray-400 mt-6">로그인하면 하루 3회 새 퀘스트를 받을 수 있어요.<br>별도 API 키 없이 AI 미션을 받을 수 있어요.</p>
+    <p class="text-center text-[11px] text-gray-400 mt-6">로그인 없이 하루 3회 새 퀘스트를 받을 수 있어요.<br>같은 브라우저에서는 미션과 기록이 유지돼요.</p>
   </div>
 </div>
 
@@ -61,7 +61,6 @@
     <div class="glass rounded-full px-3 py-2 shadow-soft flex items-center gap-1.5 text-sm font-semibold text-violet-500">
       <span>👤</span><span id="elUser" class="max-w-[6rem] truncate"></span>
     </div>
-    <button id="btnLogout" onclick="logout()" class="glass w-9 h-9 rounded-full shadow-soft flex items-center justify-center hover:scale-110 active:scale-95 transition-all text-gray-500" title="로그아웃" aria-label="로그아웃">🚪</button>
   </div>
 
   <!-- 탭 -->

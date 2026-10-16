@@ -98,7 +98,8 @@ test('웹앱: 새로고침 복원, 서버 AI 호출, 오류 시 미션 유지',a
     if(!elements.has(id)) elements.set(id,{classList:{add(){},remove(){},toggle(){}},style:{},value:'',textContent:'',disabled:false,focus(){}});
     return elements.get(id);
   };
-  const client={rpc,functions:{invoke:async()=>({data:{...saved,tMission:{...mission,t:'서버 AI 미션',ai:true},refreshCount:1}})},auth:{onAuthStateChange(){},getSession:async()=>({data:{session:null}})}};
+  let anonymousStarts=0;
+  const client={rpc,functions:{invoke:async()=>({data:{...saved,tMission:{...mission,t:'서버 AI 미션',ai:true},refreshCount:1}})},auth:{onAuthStateChange(){},getSession:async()=>({data:{session:null}}),signInAnonymously:async()=>{anonymousStarts++;return{data:{user:{id:alice,is_anonymous:true}}};}}};
   class Clock extends Date { constructor(...args){ super(...(args.length?args:['2026-10-16T04:00:00Z'])); } static now(){return new Clock().getTime();} }
   const context={Date:Clock,console,Response,sessionStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)},
     document:{getElementById:element,addEventListener(){}},setTimeout,clearTimeout,setInterval(){},
@@ -106,9 +107,16 @@ test('웹앱: 새로고침 복원, 서버 AI 호출, 오류 시 미션 유지',a
   context.window=context;
   let source=await fs.readFile('app.js','utf8');
   source=source.replace(/^import .*;\n/gm,'');
-  source+='\nwindow.test={enterApp,escapeHtml,action,getState:()=>st};';
+  source+='\nwindow.test={boot,enterApp,escapeHtml,action,getState:()=>st};';
+  source=source.replace('boot().catch(', 'window.testReady=boot().catch(');
   vm.runInNewContext(source,context);
   const app=context.test;
+  await context.testReady;
+  assert.equal(anonymousStarts,1);
+  assert.equal(app.getState().tMission.t,mission.t);
+  client.auth.getSession=async()=>({data:{session:{user:{id:alice,is_anonymous:true}}}});
+  await app.boot();
+  assert.equal(anonymousStarts,1); // Reload reuses the saved anonymous session.
   await app.enterApp({id:alice});
   await app.enterApp({id:alice});
   assert.equal(JSON.stringify(app.getState().tMission),JSON.stringify(mission));
@@ -139,7 +147,7 @@ test('웹앱: 새로고침 복원, 서버 AI 호출, 오류 시 미션 유지',a
 
 test('서버 AI: 인증·선차감·비밀 키 격리·오류 응답 정제',async()=>{
   let calls=[],providerCalls=0,deny=false,providerFails=false,limited=false;
-  const admin={auth:{getUser:async token=>({data:{user:!deny && token==='valid'?{id:alice}:null},error:null})},
+  const admin={auth:{getUser:async token=>({data:{user:!deny && token==='valid'?{id:alice,is_anonymous:true}:null},error:null})},
     rpc:async(name,args)=>{calls.push(args); if(limited)return {error:{message:'DAILY_LIMIT'}};
       return {data:args.p_action==='reserve'?{request:'request-id',day:'2026-10-16',mission}:{tMission:args.p_mission,refreshCount:1}};}};
   const fetchApi=async(url,options)=>{

@@ -1,3 +1,10 @@
+project_id = "daily-spark"
+
+[auth]
+enable_anonymous_sign_ins = true
+site_url = "https://karami503.github.io/daily-spark/"
+additional_redirect_urls = ["https://karami503.github.io/daily-spark/"]
+
 # JWT is verified with Supabase Auth getUser() inside the function, including asymmetric signing keys.
 [functions.generate-mission]
 verify_jwt = false

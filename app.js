@@ -77,7 +77,7 @@ import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from './config.js';
       SAME_MISSION:'같은 미션이 나왔어요. 다시 시도해주세요.',
       AI_FAILED:'AI 생성에 실패했어요. 기존 미션은 유지되며 요청 횟수는 1회 사용됐어요.',
       SERVER_NOT_READY:'AI 서버를 준비 중이에요. 잠시 후 다시 시도해주세요.',
-      LOGIN_REQUIRED:'다시 로그인해주세요.',
+      LOGIN_REQUIRED:'연결이 만료됐어요. 페이지를 새로고침해주세요.',
       STALE_REQUEST:'다른 요청으로 미션이 바뀌었어요. 현재 미션을 확인해주세요.'};
     alert(messages[error.message] || '요청에 실패했어요. 잠시 후 다시 시도해주세요.');
   }
@@ -103,25 +103,11 @@ import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from './config.js';
       $(id).classList.toggle('cursor-not-allowed',disabled);
     });
   }
-  window.authSubmit=async()=>{
-    if(!client) return;
-    $('authError').textContent='';
-    const {error}=await client.auth.signInWithOAuth({provider:'google',options:{redirectTo:location.origin+location.pathname}});
-    if(error) $('authError').textContent='Google 로그인에 실패했어요. 잠시 후 다시 시도해주세요.';
-  };
-  window.logout=async()=>{
-    if(generating) return;
-    const {error}=await client.auth.signOut();
-    if(error) { showError(error); return; }
-    currentUser=null; st=null; cur=null;
-    $('appScreen').classList.add('hidden');
-    $('authScreen').classList.remove('hidden');
-  };
   async function enterApp(user) {
     if(currentUser!==user.id) {
         currentUser=user.id; st=null; cur=null;
     }
-    $('elUser').textContent=user.user_metadata?.full_name || user.email || '사용자';
+    $('elUser').textContent='나의 미션';
     try {
       await action('get');
       if(currentUser!==user.id) return;
@@ -191,12 +177,10 @@ import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from './config.js';
     if(!currentUser || !st || generating) return;
     generating=true;
     renderQuota();
-    $('btnLogout').disabled=true;
     try { await task(); } catch(error) {
       if(error.name!=='AbortError') showError(error);
     } finally {
       generating=false;
-      $('btnLogout').disabled=false;
       $('mLoading').classList.add('hidden');
       if(st) renderApp();
     }
@@ -332,22 +316,18 @@ import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from './config.js';
   async function boot() {
     renderQuote();
     if(!client) {
-      $('authError').textContent='로그인 서비스 연결을 준비하고 있어요. 잠시 후 다시 방문해주세요.';
+      $('authError').textContent='서비스를 준비하고 있어요. 잠시 후 다시 방문해주세요.';
       return;
     }
-    $('authBtn').disabled=false;
-    client.auth.onAuthStateChange((event,session)=>{
-      if(event==='SIGNED_OUT') {
-        currentUser=null; st=null; cur=null;
-        $('appScreen').classList.add('hidden'); $('authScreen').classList.remove('hidden');
-      } else if(session && currentUser!==session.user.id) {
-        // Auth callback 밖에서 DB 요청을 실행해 인증 잠금 대기를 피합니다.
-        setTimeout(()=>enterApp(session.user),0);
-      }
-    });
     const {data,error}=await client.auth.getSession();
-    if(error) $('authError').textContent='로그인 상태를 확인하지 못했어요. 다시 로그인해주세요.';
-    else if(data.session) await enterApp(data.session.user);
+    if(error) throw error;
+    let user=data.session?.user;
+    if(!user) {
+      const result=await client.auth.signInAnonymously();
+      if(result.error) throw result.error;
+      user=result.data.user;
+    }
+    await enterApp(user);
     const sync=()=>{ if(currentUser && st && !generating) action('get').catch(()=>{ if(st) $('refreshQuota').textContent='동기화에 실패했어요. 연결 상태를 확인해주세요.'; }); };
     window.addEventListener('focus',sync);
     document.addEventListener('visibilitychange',()=>{ if(!document.hidden) sync(); });
