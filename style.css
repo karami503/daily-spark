@@ -1,0 +1,29 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+    body { font-family:'Noto Sans KR',system-ui,sans-serif; }
+    .text-gradient { background:linear-gradient(135deg,#8B5CF6,#EC4899,#F59E0B); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+    .glass { background:rgba(255,255,255,.62); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px); border:1px solid rgba(255,255,255,.35); }
+    .card-grad { background:linear-gradient(135deg,#fdf2f8 0%,#ede9fe 35%,#dbeafe 65%,#d1fae5 100%); }
+    .card-done { background:linear-gradient(135deg,#d1fae5 0%,#a7f3d0 50%,#6ee7b7 100%); }
+    .shadow-soft { box-shadow:0 4px 24px rgba(139,92,246,.10),0 1px 4px rgba(0,0,0,.04); }
+    .shadow-glow { box-shadow:0 0 28px rgba(139,92,246,.14),0 4px 14px rgba(0,0,0,.06); }
+    .tab-on { background:linear-gradient(135deg,#8B5CF6,#6366F1); color:#fff; box-shadow:0 4px 14px rgba(99,102,241,.30); }
+    .blob { position:fixed; border-radius:50%; filter:blur(80px); opacity:.30; z-index:0; pointer-events:none; }
+    .btn-press { transition:all .15s ease; } .btn-press:active { transform:scale(.95); }
+    ::-webkit-scrollbar { width:5px; } ::-webkit-scrollbar-thumb { background:#c4b5fd; border-radius:99px; }
+    .confetti-box { pointer-events:none; position:fixed; inset:0; z-index:9999; overflow:hidden; }
+    .confetti-p { position:absolute; animation:cFall var(--dur) ease-out forwards; }
+    @keyframes cFall { 0%{ transform:translateY(-5vh) rotate(0) scale(1); opacity:1; } 100%{ transform:translateY(105vh) rotate(720deg) scale(.25); opacity:0; } }
+    .ck-circle { stroke-dasharray:166; stroke-dashoffset:166; animation:ckS .6s cubic-bezier(.65,0,.45,1) forwards; }
+    .ck-check  { stroke-dasharray:48;  stroke-dashoffset:48;  animation:ckS .3s cubic-bezier(.65,0,.45,1) .4s forwards; }
+    @keyframes ckS { to { stroke-dashoffset:0; } }
+    .shimmer { background:linear-gradient(90deg,#f3e8ff 25%,#ede9fe 50%,#f3e8ff 75%); background-size:200% 100%; animation:shimAnim 1.5s linear infinite; }
+    @keyframes shimAnim { from{ background-position:200% 0; } to{ background-position:-200% 0; } }
+    .modal-bg { transition:opacity .25s ease; }
+    .modal-panel { transition:transform .3s cubic-bezier(.22,1,.36,1), opacity .25s ease; }
+    /* 로그인 카드 */
+    .login-card { background:rgba(255,255,255,.75); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); }
+    .input-field { transition:all .2s ease; }
+    .input-field:focus { box-shadow:0 0 0 3px rgba(139,92,246,.2); border-color:#8B5CF6; }

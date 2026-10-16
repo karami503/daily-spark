@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E✨%3C/text%3E%3C/svg%3E" />
+  <title>오늘의 소소한 미션 — Daily Spark ✨</title>
+  <link rel="stylesheet" href="./style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+
+</head>
+<body class="min-h-screen bg-gradient-to-br from-violet-50 via-rose-50 to-sky-50 overflow-x-hidden relative">
+
+<!-- 배경 블롭 -->
+<div class="blob w-[22rem] h-[22rem] bg-purple-300 -top-44 -left-44 animate-float"></div>
+<div class="blob w-80 h-80 bg-pink-200 top-1/3 -right-36 animate-float" style="animation-delay:-2s"></div>
+<div class="blob w-72 h-72 bg-sky-200 bottom-10 left-1/4 animate-float" style="animation-delay:-4s"></div>
+<div id="confettiBox" class="confetti-box hidden"></div>
+
+<!-- ====================================================================== -->
+<!-- ==================== 로그인 / 회원가입 화면 ========================== -->
+<!-- ====================================================================== -->
+<div id="authScreen" class="relative z-10 min-h-screen flex items-center justify-center p-4">
+  <div class="login-card rounded-3xl shadow-glow p-8 sm:p-10 w-full max-w-sm animate-pop">
+    <!-- 헤더 -->
+    <div class="text-center mb-8">
+      <p class="text-5xl mb-3 select-none">✨</p>
+      <h1 class="text-2xl font-extrabold text-gradient">Daily Spark</h1>
+      <p class="text-xs text-gray-400 mt-1 font-semibold tracking-widest">오늘의 소소한 미션</p>
+    </div>
+
+    <p class="text-center text-sm text-gray-500 mb-6 leading-relaxed">매일 작은 도전 하나.<br>Google 계정으로 미션과 기록을 이어가세요.</p>
+    <button onclick="authSubmit()" id="authBtn" disabled
+      class="btn-press w-full bg-white border border-gray-200 text-gray-700 rounded-xl py-3.5 font-bold text-sm shadow-soft disabled:opacity-50">
+      Google로 로그인
+    </button>
+    <p id="authError" role="status" class="text-xs text-red-500 mt-3 min-h-[1.2rem] text-center"></p>
+    <p class="text-center text-[11px] text-gray-400 mt-6">로그인하면 하루 3회 새 퀘스트를 받을 수 있어요.<br>Gemini API 키는 설정에서 직접 입력하세요.</p>
+  </div>
+</div>
+
+<!-- ====================================================================== -->
+<!-- ========================= 메인 앱 화면 =============================== -->
+<!-- ====================================================================== -->
+<div id="appScreen" class="hidden relative z-10 max-w-lg mx-auto px-4 pt-6 pb-28">
+
+  <!-- 헤더 -->
+  <header class="text-center mb-5 animate-slide-up">
+    <p class="text-4xl mb-1 select-none">✨</p>
+    <h1 class="text-2xl sm:text-3xl font-extrabold text-gradient leading-tight">오늘의 소소한 미션</h1>
+    <p class="text-xs text-gray-400 mt-1 font-semibold tracking-widest">DAILY SPARK</p>
+  </header>
+
+  <!-- 유저 바 -->
+  <div class="flex items-center justify-center gap-3 mb-5 animate-slide-up" style="animation-delay:.06s">
+    <div class="glass rounded-full px-4 py-2 shadow-soft flex items-center gap-2 text-sm font-semibold text-gray-600">
+      <span>📅</span><span id="elDate"></span>
+    </div>
+    <div class="glass rounded-full px-3 py-2 shadow-soft flex items-center gap-1.5 text-sm font-semibold text-violet-500">
+      <span>👤</span><span id="elUser" class="max-w-[6rem] truncate"></span>
+    </div>
+    <button onclick="openSettings()" class="glass w-9 h-9 rounded-full shadow-soft flex items-center justify-center hover:scale-110 active:scale-95 transition-all text-gray-500" title="설정" aria-label="설정">⚙️</button>
+    <button id="btnLogout" onclick="logout()" class="glass w-9 h-9 rounded-full shadow-soft flex items-center justify-center hover:scale-110 active:scale-95 transition-all text-gray-500" title="로그아웃" aria-label="로그아웃">🚪</button>
+  </div>
+
+  <!-- 탭 -->
+  <nav class="flex gap-2 mb-5 animate-slide-up" style="animation-delay:.10s">
+    <button id="tabMission" onclick="setTab('mission')" class="tab flex-1 py-2.5 rounded-2xl text-sm font-bold transition-all duration-300 tab-on">🎯 오늘의 미션</button>
+    <button id="tabHistory" onclick="setTab('history')" class="tab flex-1 py-2.5 rounded-2xl text-sm font-bold transition-all duration-300 bg-white/50 text-gray-500 hover:bg-white/70">📋 미션 기록</button>
+  </nav>
+
+  <!-- ====== 미션 섹션 ====== -->
+  <section id="secMission">
+    <!-- 주간 프로그레스 -->
+    <div class="glass rounded-3xl p-4 shadow-soft mb-5 animate-slide-up" style="animation-delay:.14s">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-[11px] font-bold text-gray-400 uppercase tracking-widest">이번 주 달성률</span>
+        <span id="weekLabel" class="text-xs font-bold text-violet-500">0 / 7</span>
+      </div>
+      <div class="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
+        <div id="weekBar" class="h-full rounded-full bg-gradient-to-r from-violet-400 via-pink-400 to-amber-400 transition-all duration-700" style="width:0%"></div>
+      </div>
+      <div class="flex justify-between mt-3 px-0.5" id="weekDots"></div>
+    </div>
+
+    <!-- 미션 카드 -->
+    <div id="missionCard" class="card-grad rounded-3xl p-6 sm:p-8 shadow-glow transition-all duration-500 animate-pop relative overflow-hidden">
+      <div class="flex items-center gap-2 mb-3">
+        <span id="mEmoji" class="text-2xl">🌿</span>
+        <span id="mCat" class="text-[11px] font-bold uppercase tracking-widest text-violet-400">힐링</span>
+        <span id="mAiBadge" class="hidden ml-auto text-[10px] font-bold bg-gradient-to-r from-violet-500 to-pink-500 text-white px-2.5 py-0.5 rounded-full">✨ AI 생성</span>
+      </div>
+      <p id="mText" class="text-xl sm:text-2xl font-bold text-gray-800 leading-relaxed mb-2 min-h-[3.5rem]">미션을 불러오는 중…</p>
+      <div class="flex items-center gap-1 text-xs text-gray-400 mt-3"><span>⏱</span><span id="mTime">약 5분</span></div>
+      <!-- done overlay -->
+      <div id="doneOverlay" class="hidden absolute inset-0 bg-green-400/20 backdrop-blur-sm rounded-3xl flex flex-col items-center justify-center z-10">
+        <svg class="w-20 h-20" viewBox="0 0 52 52"><circle class="ck-circle" cx="26" cy="26" r="25" fill="none" stroke="#22c55e" stroke-width="2"/><path class="ck-check" fill="none" stroke="#22c55e" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" d="M14.1 27.2l7.1 7.2 16.7-16.8"/></svg>
+        <p class="mt-3 text-lg font-bold text-green-600">미션 완료! 🎉</p>
+        <p class="text-sm text-green-500 mt-1">오늘도 멋진 하루예요</p>
+      </div>
+      <!-- loading shimmer -->
+      <div id="mLoading" class="hidden absolute inset-0 rounded-3xl shimmer z-10 flex items-center justify-center">
+        <p class="text-sm font-semibold text-violet-400 animate-pulse">🤖 AI가 미션을 만들고 있어요…</p>
+      </div>
+    </div>
+
+    <!-- 액션 버튼 -->
+    <div class="flex gap-3 mt-5 animate-slide-up" style="animation-delay:.22s">
+      <button id="btnRandom" onclick="drawRandom()" class="btn-press flex-1 glass rounded-2xl py-3.5 font-bold text-gray-600 shadow-soft hover:shadow-glow flex items-center justify-center gap-2">
+        <span id="icoRefresh" class="text-xl inline-block transition-transform duration-300">🔄</span><span class="text-sm">랜덤 뽑기</span>
+      </button>
+      <button id="btnDone" onclick="completeMission()" class="btn-press flex-1 bg-gradient-to-r from-violet-500 to-pink-500 text-white rounded-2xl py-3.5 font-bold shadow-lg hover:shadow-xl flex items-center justify-center gap-2">
+        <span class="text-xl">✅</span><span class="text-sm">완료하기</span>
+      </button>
+    </div>
+
+    <!-- AI 미션 버튼 -->
+    <button id="btnAi" onclick="generateAiMission()" class="btn-press w-full mt-3 glass rounded-2xl py-3.5 font-bold text-violet-600 shadow-soft hover:shadow-glow flex items-center justify-center gap-2 animate-slide-up border border-violet-200/60" style="animation-delay:.26s">
+      <span class="text-xl">🤖</span><span class="text-sm">AI 미션 생성 (Gemini)</span>
+      <span id="aiKeyHint" class="text-[10px] text-gray-400 ml-1">(키 미설정)</span>
+    </button>
+
+    <p id="refreshQuota" role="status" class="text-center text-xs text-gray-500 mt-3"></p>
+
+    <p id="elQuote" class="text-center text-sm text-gray-400 italic mt-5 animate-slide-up" style="animation-delay:.30s">"작은 행동이 큰 변화를 만들어요 💜"</p>
+  </section>
+
+  <!-- ====== 히스토리 섹션 ====== -->
+  <section id="secHistory" class="hidden">
+    <div class="grid grid-cols-3 gap-3 mb-5 animate-fade-in">
+      <div class="glass rounded-2xl p-4 shadow-soft text-center">
+        <p class="text-2xl font-extrabold text-gradient" id="sTotal">0</p>
+        <p class="text-[10px] text-gray-400 mt-1 font-semibold">총 완료</p>
+      </div>
+      <div class="glass rounded-2xl p-4 shadow-soft text-center">
+        <p class="text-2xl font-extrabold text-gradient" id="sStreak">0</p>
+        <p class="text-[10px] text-gray-400 mt-1 font-semibold">연속 🔥</p>
+      </div>
+      <div class="glass rounded-2xl p-4 shadow-soft text-center">
+        <p class="text-2xl font-extrabold text-gradient" id="sWeek">0</p>
+        <p class="text-[10px] text-gray-400 mt-1 font-semibold">이번 주</p>
+      </div>
+    </div>
+    <div class="glass rounded-3xl p-5 shadow-soft mb-5 animate-fade-in" style="animation-delay:.06s">
+      <div class="flex items-center justify-between mb-3">
+        <button onclick="calNav(-1)" class="w-8 h-8 rounded-full bg-white/60 hover:bg-white flex items-center justify-center transition text-gray-500 font-bold text-sm">‹</button>
+        <h3 id="calTitle" class="text-sm font-bold text-gray-600"></h3>
+        <button onclick="calNav(1)" class="w-8 h-8 rounded-full bg-white/60 hover:bg-white flex items-center justify-center transition text-gray-500 font-bold text-sm">›</button>
+      </div>
+      <div class="grid grid-cols-7 text-center text-[10px] text-gray-400 font-bold mb-2"><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span><span>일</span></div>
+      <div id="calGrid" class="grid grid-cols-7 gap-1 text-center text-xs"></div>
+    </div>
+    <div class="glass rounded-3xl shadow-soft overflow-hidden animate-fade-in" style="animation-delay:.12s">
+      <div class="px-5 py-3 border-b border-white/30"><h3 class="text-sm font-bold text-gray-600">📝 최근 완료한 미션</h3></div>
+      <div id="histList" class="divide-y divide-gray-100/50 max-h-80 overflow-y-auto"></div>
+      <div id="histEmpty" class="hidden p-8 text-center text-gray-400">
+        <p class="text-3xl mb-2">🌱</p><p class="text-sm">아직 완료한 미션이 없어요.<br/>오늘 첫 미션을 시작해 보세요!</p>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ====================================================================== -->
+<!-- ========================= 설정 모달 ================================== -->
+<!-- ====================================================================== -->
+<div id="modalBg" class="modal-bg fixed inset-0 bg-black/30 backdrop-blur-sm z-50 hidden opacity-0 flex items-end sm:items-center justify-center p-4" onclick="closeSettings(event)">
+  <div id="modalPanel" role="dialog" aria-modal="true" aria-label="Gemini API 키 설정" class="modal-panel glass rounded-3xl w-full max-w-md p-6 shadow-xl translate-y-8 opacity-0" onclick="event.stopPropagation()">
+    <div class="flex items-center justify-between mb-5">
+      <h2 class="text-lg font-bold text-gray-700">⚙️ Gemini AI 설정</h2>
+      <button onclick="closeSettings()" class="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition text-gray-400 text-sm">✕</button>
+    </div>
+
+    <!-- 안내 -->
+    <div class="bg-violet-50/80 rounded-2xl p-4 mb-5">
+      <p class="text-sm font-bold text-violet-600 mb-2">🔑 내 Gemini API 키 입력</p>
+      <ol class="text-xs text-gray-600 space-y-1.5 list-decimal list-inside">
+        <li><a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" class="text-violet-500 underline font-semibold hover:text-violet-700">aistudio.google.com/apikey</a> 접속</li>
+        <li>Google 계정으로 로그인</li>
+        <li>"API 키 만들기" 클릭 → 키 복사</li>
+        <li>아래에 붙여넣기 후 저장!</li>
+      </ol>
+      <p class="text-[10px] text-gray-400 mt-2">💡 무료 사용량과 요금은 모델·프로젝트 설정에 따라 달라져요.</p>
+    </div>
+
+    <!-- API Key 입력 -->
+    <label for="inpKey" class="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Gemini API 키</label>
+    <div class="flex gap-2 mb-2">
+      <input id="inpKey" type="password" autocomplete="off" spellcheck="false" placeholder="AIza..." class="flex-1 rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-300 transition bg-white/80" />
+      <button onclick="toggleKeyVis()" id="btnEye" aria-label="API 키 표시 전환" class="w-10 rounded-xl border border-gray-200 flex items-center justify-center text-sm hover:bg-gray-50 transition">👁</button>
+    </div>
+    <p id="keyStatus" class="text-xs text-gray-400 mb-4">키가 설정되지 않았습니다.</p>
+
+    <div class="flex gap-3">
+      <button onclick="saveKey()" class="flex-1 bg-gradient-to-r from-violet-500 to-pink-500 text-white rounded-xl py-3 font-bold text-sm btn-press shadow-md hover:shadow-lg">이 탭에 저장</button>
+      <button onclick="removeKey()" class="flex-1 bg-red-50 text-red-500 border border-red-200 rounded-xl py-3 font-bold text-sm btn-press hover:bg-red-100 transition">키 삭제</button>
+    </div>
+
+    <div class="mt-4 p-3 bg-gray-50/60 rounded-xl">
+      <p class="text-[11px] text-gray-500 leading-relaxed">🔒 API 키는 현재 탭에만 저장되며 로그아웃하거나 탭을 닫으면 지워져요. Google Gemini로 직접 전송하며 GitHub·미션 저장 서버에는 보내지 않아요.</p>
+    </div>
+  </div>
+</div>
+
+
+<!-- ====================================================================== -->
+<!-- ============================= JS ===================================== -->
+<!-- ====================================================================== -->
+<script type="module" src="./app.js"></script>
+</body>
+</html>

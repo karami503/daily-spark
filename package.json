@@ -1,0 +1,18 @@
+{
+  "name": "daily-spark",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node --test app.test.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.118.0"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.10",
+    "esbuild": "^0.28.2",
+    "tailwindcss": "3.4.19"
+  }
+}
