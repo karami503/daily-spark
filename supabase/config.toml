@@ -1,0 +1,3 @@
+# JWT is verified with Supabase Auth getUser() inside the function, including asymmetric signing keys.
+[functions.generate-mission]
+verify_jwt = false

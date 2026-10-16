@@ -65,21 +65,21 @@ import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from './config.js';
   const client = SUPABASE_URL && SUPABASE_PUBLISHABLE_KEY
     ? createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, { auth: { flowType: 'pkce' } }) : null;
   let currentUser=null, st=null, cur=null, generating=false;
-  let calDate=new Date(), requestController=null;
-  let activeTab='mission', requestSequence=0, settingsOpener=null;
+  let calDate=new Date();
+  let activeTab='mission', requestSequence=0;
 
-  function getApiKey() { return currentUser ? sessionStorage.getItem(`ds_key_${currentUser}`) || '' : ''; }
-  function setApiKey(key) { sessionStorage.setItem(`ds_key_${currentUser}`,key); }
-  function removeApiKey() { if(currentUser) sessionStorage.removeItem(`ds_key_${currentUser}`); }
   function escapeHtml(value) {
     return String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
   function showError(error) {
     const messages={DAILY_LIMIT:'오늘 새 퀘스트 3회를 모두 사용했어요. 한국 시간 자정에 초기화돼요.',
       ALREADY_DONE:'오늘의 미션은 이미 완료했어요.', MISSION_CHANGED:'다른 탭에서 미션이 바뀌었어요. 현재 미션을 확인해주세요.',
-      SAME_MISSION:'같은 미션이 나왔어요. 횟수는 차감되지 않았으니 다시 시도해주세요.'};
-    const safeMessages=['API 키의 유효성과 Gemini API 사용 권한을 확인해주세요.','Gemini 사용량 한도에 도달했어요. 잠시 후 다시 시도해주세요.','Gemini 서버가 응답하지 않아요. 잠시 후 다시 시도해주세요.','Gemini 응답 시간이 초과됐어요. 미션과 남은 횟수는 유지돼요.','AI 응답 형식이 올바르지 않아요. 다시 시도해주세요.','AI 미션 내용을 확인할 수 없어요. 다시 시도해주세요.'];
-    alert(messages[error.message] || (safeMessages.includes(error.message)?error.message:'요청에 실패했어요. 연결 상태와 설정을 확인한 뒤 다시 시도해주세요.'));
+      SAME_MISSION:'같은 미션이 나왔어요. 다시 시도해주세요.',
+      AI_FAILED:'AI 생성에 실패했어요. 기존 미션은 유지되며 요청 횟수는 1회 사용됐어요.',
+      SERVER_NOT_READY:'AI 서버를 준비 중이에요. 잠시 후 다시 시도해주세요.',
+      LOGIN_REQUIRED:'다시 로그인해주세요.',
+      STALE_REQUEST:'다른 요청으로 미션이 바뀌었어요. 현재 미션을 확인해주세요.'};
+    alert(messages[error.message] || '요청에 실패했어요. 잠시 후 다시 시도해주세요.');
   }
   async function action(kind, mission=pick()) {
     const uid=currentUser, sequence=++requestSequence;
@@ -113,18 +113,13 @@ import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from './config.js';
     if(generating) return;
     const {error}=await client.auth.signOut();
     if(error) { showError(error); return; }
-    removeApiKey();
     currentUser=null; st=null; cur=null;
-    $('inpKey').value='';
-    closeSettings();
     $('appScreen').classList.add('hidden');
     $('authScreen').classList.remove('hidden');
   };
   async function enterApp(user) {
     if(currentUser!==user.id) {
-      removeApiKey();
-      requestController?.abort();
-      currentUser=user.id; st=null; cur=null;
+        currentUser=user.id; st=null; cur=null;
     }
     $('elUser').textContent=user.user_metadata?.full_name || user.email || '사용자';
     try {
@@ -132,7 +127,6 @@ import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from './config.js';
       if(currentUser!==user.id) return;
       $('authScreen').classList.add('hidden');
       $('appScreen').classList.remove('hidden');
-      refreshAiHint();
     } catch(error) {
       if(currentUser===user.id) $('authError').textContent='미션을 불러오지 못했어요. 연결 상태를 확인하고 새로고침해주세요.';
     }
@@ -215,49 +209,22 @@ import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from './config.js';
     await action('complete',cur);
     confetti();
   });
-  window.generateAiMission=()=>{
-    if(!currentUser || generating || !st) return;
-    const key=getApiKey();
-    if(!key) { openSettings(); return; }
-    return runBusy(async()=>{
-      await action('get');
-      if(st.tDone || st.refreshCount>=3) throw new Error(st.tDone?'ALREADY_DONE':'DAILY_LIMIT');
-      const uid=currentUser;
-      requestController=new AbortController();
-      const timer=setTimeout(()=>requestController.abort(),45000);
-      $('mLoading').classList.remove('hidden');
-      try {
-        const res=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',{
-          method:'POST',signal:requestController.signal,
-          headers:{'Content-Type':'application/json','x-goog-api-key':key},
-          body:JSON.stringify({contents:[{parts:[{text:`일상에서 안전하게 혼자 실천할 수 있는 긍정적인 5~10분 미션 하나를 추천해줘. 돈을 쓰거나 위험한 행동은 제외해줘. 다음 미션과 다른 내용으로 작성해줘: ${cur.t}.` }]}],
-            generationConfig:{temperature:0.95,maxOutputTokens:512,thinkingConfig:{thinkingBudget:0},responseMimeType:'application/json',
-              responseSchema:{type:'OBJECT',properties:{mission:{type:'STRING'},category:{type:'STRING',enum:['힐링','소통','정리','성장','활력','창의','친절']},emoji:{type:'STRING'},time:{type:'STRING'}},required:['mission','category','emoji','time']}}})
-        });
-        if(!res.ok) {
-          if(res.status===400 || res.status===403) throw new Error('API 키의 유효성과 Gemini API 사용 권한을 확인해주세요.');
-          if(res.status===429) throw new Error('Gemini 사용량 한도에 도달했어요. 잠시 후 다시 시도해주세요.');
-          throw new Error('Gemini 서버가 응답하지 않아요. 잠시 후 다시 시도해주세요.');
-        }
-        const data=await res.json();
-        const raw=data.candidates?.[0]?.content?.parts?.filter(p=>p.text).map(p=>p.text).join('') || '';
-        const mission=parseAi(raw);
-        if(currentUser===uid) await action('refresh',mission);
-      } catch(error) {
-        if(error.name==='AbortError') throw new Error('Gemini 응답 시간이 초과됐어요. 미션과 남은 횟수는 유지돼요.');
-        throw error;
-      } finally { clearTimeout(timer); requestController=null; }
-    });
-  };
-  function parseAi(raw) {
-    let o;
-    try { o=JSON.parse(raw); } catch { throw new Error('AI 응답 형식이 올바르지 않아요. 다시 시도해주세요.'); }
-    const fields=[['mission',200],['emoji',32],['time',40]];
-    if(fields.some(([key,max])=>typeof o[key]!=='string' || !o[key].trim() || [...o[key]].length>max)
-      || !['힐링','소통','정리','성장','활력','창의','친절'].includes(o.category))
-      throw new Error('AI 미션 내용을 확인할 수 없어요. 다시 시도해주세요.');
-    return {t:o.mission.trim(),c:o.category,e:o.emoji.trim(),m:o.time.trim(),ai:true};
-  }
+  window.generateAiMission=()=>runBusy(async()=>{
+    const uid=currentUser, sequence=++requestSequence;
+    $('mLoading').classList.remove('hidden');
+    const {data,error}=await client.functions.invoke('generate-mission',{body:{}});
+    if(error) {
+      let code='AI_FAILED';
+      if(error.context instanceof Response) {
+        const payload=await error.context.json().catch(()=>null);
+        if(payload?.error) code=payload.error;
+      }
+      if(currentUser===uid) await action('get').catch(()=>{});
+      throw new Error(code);
+    }
+    if(currentUser!==uid || sequence!==requestSequence) return;
+    st=data; cur=st.tMission; renderApp();
+  });
 
   /* ─────── 컨페티 ─────── */
   function confetti() {
@@ -355,64 +322,12 @@ import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from './config.js';
     $('sWeek').textContent = wc;
   }
 
-  /* ─────── 설정 모달 ─────── */
-  window.openSettings = () => {
-    settingsOpener=document.activeElement;
-    const bg=$('modalBg'), panel=$('modalPanel');
-    bg.classList.remove('hidden');
-    requestAnimationFrame(()=>{ bg.classList.remove('opacity-0'); panel.classList.remove('translate-y-8','opacity-0'); });
-    $('inpKey').type='password';
-    $('inpKey').value = getApiKey();
-    $('inpKey').focus();
-    refreshKeyUI();
-  };
-  window.closeSettings = (e) => {
-    if(e && e.target!==e.currentTarget) return;
-    const bg=$('modalBg'), panel=$('modalPanel');
-    bg.classList.add('opacity-0'); panel.classList.add('translate-y-8','opacity-0');
-    setTimeout(()=>{ bg.classList.add('hidden'); settingsOpener?.focus(); },300);
-  };
-  window.toggleKeyVis = () => {
-    const inp=$('inpKey');
-    inp.type = inp.type==='password'?'text':'password';
-    $('btnEye').textContent = inp.type==='password'?'👁':'🙈';
-  };
-  window.saveKey = () => {
-    const k=$('inpKey').value.trim();
-    if(!/^AIza[\w-]{35}$/.test(k)) { alert('올바른 Gemini API 키를 입력해주세요.'); return; }
-    setApiKey(k);
-    refreshKeyUI(); refreshAiHint();
-    alert('✅ API 키가 저장되었습니다!');
-  };
-  window.removeKey = () => {
-    removeApiKey();
-    $('inpKey').value='';
-    refreshKeyUI(); refreshAiHint();
-    alert('🗑️ API 키가 삭제되었습니다.');
-  };
-  function refreshKeyUI() {
-    const k=getApiKey(), s=$('keyStatus');
-    if(k) {
-      s.textContent=`✅ 키 설정됨: ${k.slice(0,8)}…${k.slice(-4)}`;
-      s.className='text-xs text-green-500 mb-4';
-    } else {
-      s.textContent='키가 설정되지 않았습니다.';
-      s.className='text-xs text-gray-400 mb-4';
-    }
-  }
-  function refreshAiHint() {
-    const k=getApiKey();
-    $('aiKeyHint').textContent = k ? '(Gemini ✓)' : '(키 미설정)';
-    $('aiKeyHint').className = k ? 'text-[10px] text-green-500 ml-1 font-semibold' : 'text-[10px] text-gray-400 ml-1';
-  }
-
   function renderApp() {
     if(!st || !cur) return;
     renderDate();
     renderCard(cur,st.tKey===todayKey() && st.tDone);
     renderWeek();
     if(activeTab==='history') { renderCal(); renderHist(); renderStats(); }
-    refreshAiHint();
   }
   async function boot() {
     renderQuote();
@@ -423,8 +338,7 @@ import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from './config.js';
     $('authBtn').disabled=false;
     client.auth.onAuthStateChange((event,session)=>{
       if(event==='SIGNED_OUT') {
-        removeApiKey(); requestController?.abort(); currentUser=null; st=null; cur=null;
-        $('inpKey').value=''; closeSettings();
+        currentUser=null; st=null; cur=null;
         $('appScreen').classList.add('hidden'); $('authScreen').classList.remove('hidden');
       } else if(session && currentUser!==session.user.id) {
         // Auth callback 밖에서 DB 요청을 실행해 인증 잠금 대기를 피합니다.
@@ -439,14 +353,4 @@ import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from './config.js';
     document.addEventListener('visibilitychange',()=>{ if(!document.hidden) sync(); });
     setInterval(()=>{ if(st) renderApp(); },1000);
   }
-  document.addEventListener('keydown',event=>{
-    if($('modalBg').classList.contains('hidden')) return;
-    if(event.key==='Escape') closeSettings();
-    if(event.key==='Tab') {
-      const items=[...$('modalPanel').querySelectorAll('button,a,input')];
-      const first=items[0], last=items.at(-1);
-      if(event.shiftKey && document.activeElement===first) { event.preventDefault(); last.focus(); }
-      else if(!event.shiftKey && document.activeElement===last) { event.preventDefault(); first.focus(); }
-    }
-  });
   boot().catch(()=>{ $('authError').textContent='앱을 시작하지 못했어요. 새로고침 후 다시 시도해주세요.'; });

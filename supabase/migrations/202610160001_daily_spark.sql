@@ -6,6 +6,7 @@ create table if not exists public.daily_spark_users (
   done boolean not null default false,
   history jsonb not null default '[]'::jsonb
 );
+alter table public.daily_spark_users add column if not exists ai_request uuid;
 alter table public.daily_spark_users enable row level security;
 revoke all on public.daily_spark_users from anon, authenticated;
 grant select on public.daily_spark_users to authenticated;
@@ -59,7 +60,8 @@ begin
     s.history := s.history || jsonb_build_array(entry);
   end if;
   update public.daily_spark_users set day=s.day, refresh_count=s.refresh_count,
-    mission=s.mission, done=s.done, history=s.history where user_id=uid
+    mission=s.mission, done=s.done, history=s.history,
+    ai_request=case when p_action='get' then ai_request else null end where user_id=uid
     and (day,refresh_count,mission,done,history) is distinct from
         (s.day,s.refresh_count,s.mission,s.done,s.history);
   return jsonb_build_object('tKey',s.day::text,'refreshCount',s.refresh_count,
@@ -68,3 +70,46 @@ end;
 $$;
 revoke all on function public.daily_spark_action(text,jsonb) from public, anon;
 grant execute on function public.daily_spark_action(text,jsonb) to authenticated;
+
+-- Only the authenticated Edge Function may reserve paid Gemini requests or commit their results.
+create or replace function public.daily_spark_ai(p_uid uuid, p_action text,
+  p_request uuid default null, p_day date default null, p_mission jsonb default null)
+returns jsonb language plpgsql security definer set search_path = '' as $$
+declare
+  today date := (statement_timestamp() at time zone 'Asia/Seoul')::date;
+  s public.daily_spark_users%rowtype;
+begin
+  select * into s from public.daily_spark_users where user_id=p_uid for update;
+  if not found then raise exception 'LOAD_FIRST'; end if;
+  if p_action='reserve' then
+    if s.day<>today then s.day:=today; s.refresh_count:=0; s.done:=false; end if;
+    if s.done then raise exception 'ALREADY_DONE'; end if;
+    if s.refresh_count>=3 then raise exception 'DAILY_LIMIT'; end if;
+    s.ai_request:=gen_random_uuid(); s.refresh_count:=s.refresh_count+1;
+    update public.daily_spark_users set day=s.day, refresh_count=s.refresh_count,
+      done=s.done, ai_request=s.ai_request where user_id=p_uid;
+    return jsonb_build_object('request',s.ai_request,'day',s.day,'mission',s.mission);
+  elsif p_action='commit' then
+    if p_request is null or s.ai_request is distinct from p_request
+      or s.day is distinct from p_day or p_day is distinct from today or s.done then
+      raise exception 'STALE_REQUEST';
+    end if;
+    if p_mission is null or jsonb_typeof(p_mission)<>'object'
+      or not(p_mission ?& array['t','c','e','m','ai'])
+      or jsonb_typeof(p_mission->'t')<>'string' or length(p_mission->>'t') not between 1 and 200
+      or jsonb_typeof(p_mission->'c')<>'string' or p_mission->>'c' not in ('힐링','소통','정리','성장','활력','창의','친절')
+      or jsonb_typeof(p_mission->'e')<>'string' or length(p_mission->>'e') not between 1 and 32
+      or jsonb_typeof(p_mission->'m')<>'string' or length(p_mission->>'m') not between 1 and 40
+      or p_mission->'ai' is distinct from 'true'::jsonb or pg_column_size(p_mission)>2048 then
+      raise exception 'INVALID_MISSION';
+    end if;
+    if s.mission->>'t'=p_mission->>'t' then raise exception 'SAME_MISSION'; end if;
+    update public.daily_spark_users set mission=p_mission, ai_request=null where user_id=p_uid;
+    return jsonb_build_object('tKey',s.day::text,'refreshCount',s.refresh_count,
+      'tMission',p_mission,'tDone',s.done,'hist',s.history);
+  end if;
+  raise exception 'INVALID_ACTION';
+end;
+$$;
+revoke all on function public.daily_spark_ai(uuid,text,uuid,date,jsonb) from public, anon, authenticated;
+grant execute on function public.daily_spark_ai(uuid,text,uuid,date,jsonb) to service_role;
