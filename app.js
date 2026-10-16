@@ -75,6 +75,7 @@ import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from './config.js';
     const messages={DAILY_LIMIT:'오늘 새 퀘스트 3회를 모두 사용했어요. 한국 시간 자정에 초기화돼요.',
       ALREADY_DONE:'오늘의 미션은 이미 완료했어요.', MISSION_CHANGED:'다른 탭에서 미션이 바뀌었어요. 현재 미션을 확인해주세요.',
       SAME_MISSION:'같은 미션이 나왔어요. 다시 시도해주세요.',
+      AI_QUOTA:'AI 서비스의 사용량 한도에 도달했어요. 잠시 후 다시 시도해주세요.',
       AI_FAILED:'AI 생성에 실패했어요. 기존 미션은 유지되며 요청 횟수는 1회 사용됐어요.',
       SERVER_NOT_READY:'AI 서버를 준비 중이에요. 잠시 후 다시 시도해주세요.',
       LOGIN_REQUIRED:'연결이 만료됐어요. 페이지를 새로고침해주세요.',

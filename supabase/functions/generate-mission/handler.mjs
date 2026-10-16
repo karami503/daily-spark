@@ -27,13 +27,18 @@ export function createHandler(admin,geminiKey,fetchApi=fetch) {
         const code=['DAILY_LIMIT','ALREADY_DONE','LOAD_FIRST'].find(c=>reserveError.message===c);
         return reply({error:code || 'SERVER_NOT_READY'},code==='DAILY_LIMIT'?429:409);
       }
-      const response=await fetchApi('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',{
+      const response=await fetchApi('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent',{
         method:'POST',signal:AbortSignal.timeout(40000),headers:{'Content-Type':'application/json','x-goog-api-key':geminiKey},
         body:JSON.stringify({contents:[{parts:[{text:`일상에서 안전하게 혼자 실천할 수 있는 긍정적인 5~10분 미션 하나를 추천해줘. 돈을 쓰거나 위험한 행동은 제외해줘. 다음 미션과 다른 내용으로 작성해줘: ${reservation.mission.t}.`}]}],
-          generationConfig:{temperature:0.95,maxOutputTokens:512,thinkingConfig:{thinkingBudget:0},responseMimeType:'application/json',
+          generationConfig:{temperature:0.95,maxOutputTokens:2048,thinkingConfig:{thinkingLevel:'low'},responseMimeType:'application/json',
             responseSchema:{type:'OBJECT',properties:{mission:{type:'STRING'},category:{type:'STRING',enum:categories},emoji:{type:'STRING'},time:{type:'STRING'}},required:['mission','category','emoji','time']}}})
       });
-      if(!response.ok) return reply({error:'AI_FAILED'},502);
+      if(!response.ok) {
+        const upstream=await response.json().catch(()=>null);
+        const reason=upstream?.error?.details?.find(d=>typeof d.reason==='string')?.reason;
+        const diagnostic=['API_KEY_INVALID','SERVICE_DISABLED','BILLING_DISABLED','QUOTA_EXCEEDED'].includes(reason)?reason:undefined;
+        return reply({error:response.status===429?'AI_QUOTA':'AI_FAILED',upstreamStatus:response.status,reason:diagnostic},502);
+      }
       const payload=await response.json();
       const raw=payload.candidates?.[0]?.content?.parts?.filter(p=>p.text && !p.thought).map(p=>p.text).join('') || '';
       const mission=parseMission(raw);

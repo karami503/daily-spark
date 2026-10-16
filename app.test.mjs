@@ -172,6 +172,9 @@ test('서버 AI: 인증·선차감·비밀 키 격리·오류 응답 정제',asy
   const body=await response.text();
   assert.ok(!body.includes('owner-secret'));
   assert.deepEqual(calls.slice(-2).map(c=>c.p_action),['reserve','commit']);
+  const quotaHandler=createHandler(admin,'owner-secret',async()=>Response.json({error:{details:[{reason:'owner-secret'}]}},{status:429}));
+  const quotaResponse=await quotaHandler(request('valid'));
+  assert.deepEqual(await quotaResponse.json(),{error:'AI_QUOTA',upstreamStatus:429});
   providerFails=true;
   const failed=await handler(request('valid'));
   assert.equal(failed.status,502);
